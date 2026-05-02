@@ -1,6 +1,6 @@
 # ECS 273 Homework 3: D3 Stock Dashboard
 
-This project is a React + TypeScript dashboard with linked visualizations for stock analysis.
+This project is a React and TypeScript dashboard with linked visualizations for stock analysis.
 
 It contains three coordinated views:
 
@@ -31,7 +31,7 @@ Advanced mode with "Show only dates with news (optional)" enabled:
 Before running, make sure you have:
 
 - Node.js 18+ (Node.js 20+ recommended)
-- npm (comes with Node.js)
+- npm 
 
 ## Setup and Run Instructions (From Scratch)
 
@@ -59,20 +59,6 @@ Vite will print a local URL in the terminal (usually):
 
 ```text
 http://localhost:5173
-```
-
-## Production Build and Checks
-
-### Build the project
-
-```bash
-npm run build
-```
-
-### Preview production build locally
-
-```bash
-npm run preview
 ```
 
 ### Run linter
@@ -117,3 +103,6 @@ Files used by the app:
 - The ticker universe is fixed and small, so findings are not intended to generalize to all equities.
 - News files are local snapshots at collection time and may not represent complete market coverage.
 - This dashboard is educational and exploratory, not a trading or forecasting system.
+
+## Use of AI 
+- Used AI claude tool in understanding D3 and its uses for this assignment. 
