@@ -5,11 +5,13 @@ import { useEffect, useRef, useState } from "react";
 import { getTsneData } from "./dataLoader";
 import { TSNEPoint } from "../types";
 
-const margin = { top: 28, right: 24, bottom: 56, left: 64 };
+const margin = { top: 44, right: 24, bottom: 56, left: 64 };
 const axisTextColor = "#334155";
 const axisLineColor = "#94a3b8";
 const axisDomainColor = "#64748b";
 const tsnePalette = [...d3.schemeTableau10, ...d3.schemeSet3, ...d3.schemePaired];
+const legendWidth = 170;
+const legendSpace = 190;
 type TsnePoint = TSNEPoint;
 type LabelMode = "all" | "selected";
 
@@ -83,7 +85,7 @@ export default function TSNEScatter({ selectedStock, onSelectStock }: TSNEScatte
 
   return (
     <div ref={containerRef} className="relative h-full w-full">
-      <div className="absolute right-3 top-3 z-10 flex gap-2">
+      <div className="absolute left-3 top-1 z-10 flex gap-2">
         <button
           type="button"
           onClick={toggleLabelMode}
@@ -104,6 +106,9 @@ export default function TSNEScatter({ selectedStock, onSelectStock }: TSNEScatte
         ref={tooltipRef}
         className="pointer-events-none absolute z-20 hidden rounded-md border border-slate-200 bg-white/95 px-2 py-1 text-xs text-slate-700 shadow"
       />
+      <div className="pointer-events-none absolute bottom-2 left-3 rounded bg-white/85 px-2 py-1 text-[10px] text-slate-600 shadow-sm">
+        t-SNE is exploratory: cluster distance is qualitative, not a predictive signal.
+      </div>
     </div>
   );
 }
@@ -140,11 +145,12 @@ function drawScatter(
   const x = d3
     .scaleLinear()
     .domain([xExtent[0] - 1, xExtent[1] + 1])
-    .range([margin.left, width - margin.right]);
+    .range([margin.left, width - margin.right - legendSpace]);
   const y = d3
     .scaleLinear()
     .domain([yExtent[0] - 1, yExtent[1] + 1])
     .range([height - margin.bottom, margin.top]);
+  const plotRight = width - margin.right - legendSpace;
 
   const sectors = Array.from(new Set(tsneData.map((d) => d.sector)));
   const color = d3.scaleOrdinal<string, string>().domain(sectors).range(tsnePalette);
@@ -176,7 +182,7 @@ function drawScatter(
     .append("rect")
     .attr("x", margin.left)
     .attr("y", margin.top)
-    .attr("width", width - margin.left - margin.right)
+    .attr("width", plotRight - margin.left)
     .attr("height", height - margin.top - margin.bottom)
     .attr("rx", 12)
     .attr("fill", `url(#${bgGradientId})`);
@@ -189,7 +195,7 @@ function drawScatter(
   const yGrid = d3
     .axisLeft(y)
     .ticks(8)
-    .tickSize(-(width - margin.left - margin.right))
+    .tickSize(-(plotRight - margin.left))
     .tickFormat(() => "");
 
   svg
@@ -313,7 +319,17 @@ function drawScatter(
 
   const legend = svg
     .append("g")
-    .attr("transform", `translate(${width - margin.right - 170}, ${margin.top + 8})`);
+    .attr("transform", `translate(${width - margin.right - legendWidth}, ${margin.top + 14})`);
+  legend
+    .append("rect")
+    .attr("x", -10)
+    .attr("y", -14)
+    .attr("width", legendWidth + 12)
+    .attr("height", sectors.length * 18 + 24)
+    .attr("rx", 10)
+    .attr("fill", "white")
+    .attr("fill-opacity", 0.86)
+    .attr("stroke", "#e2e8f0");
   sectors.forEach((sector, idx) => {
     const row = legend.append("g").attr("transform", `translate(0, ${idx * 18})`);
     row.append("circle").attr("r", 5).attr("cx", 6).attr("cy", 0).attr("fill", color(sector));

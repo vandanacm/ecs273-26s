@@ -10,6 +10,16 @@ It contains three coordinated views:
 
 Selecting a stock from the dropdown updates all views. Clicking a ticker in the scatter plot also updates the dropdown, line chart, and news panel.
 
+## UI Preview
+
+Default dashboard layout:
+
+![Dashboard default view](/Users/vmansur/.cursor/projects/Users-vmansur-MyDrive-Spring-26-ECS273-ecs273-26s/assets/image-3029fa47-8482-448f-8403-2ced6f8c864a.png)
+
+Advanced mode with "Show only dates with news (optional)" enabled:
+
+![Dashboard advanced view](/Users/vmansur/.cursor/projects/Users-vmansur-MyDrive-Spring-26-ECS273-ecs273-26s/assets/image-b0fbdfc5-c2fc-4378-be3e-ff541581fa02.png)
+
 ## Tech Stack
 
 - Frontend: React, TypeScript, Vite
@@ -99,3 +109,11 @@ Files used by the app:
 
 - This submission is frontend-only and does not require a separate backend service.
 - If `npm run dev` fails due to port conflict, Vite may choose another port automatically.
+
+## Limitations and Assumptions
+
+- The stock price history and news history have different time windows, so linked exploration does not imply causality.
+- t-SNE is used for exploratory structure only; distances and clusters are qualitative and can change with preprocessing/parameters.
+- The ticker universe is fixed and small, so findings are not intended to generalize to all equities.
+- News files are local snapshots at collection time and may not represent complete market coverage.
+- This dashboard is educational and exploratory, not a trading or forecasting system.

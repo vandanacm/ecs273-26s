@@ -19,9 +19,15 @@ const lineDefs = [
 
 interface LineChartProps {
   selectedStock: string;
+  alignToNewsWindow: boolean;
+  newsDateRange: { start: string; end: string } | null;
 }
 
-export default function LineChart({ selectedStock }: LineChartProps) {
+export default function LineChart({
+  selectedStock,
+  alignToNewsWindow,
+  newsDateRange,
+}: LineChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -60,6 +66,8 @@ export default function LineChart({ selectedStock }: LineChartProps) {
         width,
         height,
         selectedStock,
+        alignToNewsWindow,
+        newsDateRange,
       );
     };
 
@@ -68,7 +76,7 @@ export default function LineChart({ selectedStock }: LineChartProps) {
     draw();
 
     return () => observer.disconnect();
-  }, [series, selectedStock]);
+  }, [series, selectedStock, alignToNewsWindow, newsDateRange]);
 
   const resetZoom = () => {
     if (!svgRef.current || !zoomBehaviorRef.current) {
@@ -110,6 +118,8 @@ function drawChart(
   width: number,
   height: number,
   selectedStock: string,
+  alignToNewsWindow: boolean,
+  newsDateRange: { start: string; end: string } | null,
 ): d3.ZoomBehavior<SVGSVGElement, unknown> | null {
   const svg = d3.select(svgElement);
   svg.selectAll("*").remove();
@@ -128,13 +138,25 @@ function drawChart(
     return null;
   }
 
+  const displaySeries = getDisplaySeries(series, alignToNewsWindow, newsDateRange);
+  if (displaySeries.length === 0) {
+    svg
+      .append("text")
+      .attr("x", width / 2)
+      .attr("y", height / 2)
+      .attr("text-anchor", "middle")
+      .attr("fill", "#64748b")
+      .text(`No overlapping points in news window for ${selectedStock}.`);
+    return null;
+  }
+
   const x = d3
     .scaleTime()
-    .domain(d3.extent(series, (d) => d.date) as [Date, Date])
+    .domain(d3.extent(displaySeries, (d) => d.date) as [Date, Date])
     .range([margin.left, width - margin.right]);
 
-  const yMin = d3.min(series, (d) => d.low) ?? 0;
-  const yMax = d3.max(series, (d) => d.high) ?? 0;
+  const yMin = d3.min(displaySeries, (d) => d.low) ?? 0;
+  const yMax = d3.max(displaySeries, (d) => d.high) ?? 0;
   const y = d3
     .scaleLinear()
     .domain([yMin * 0.98, yMax * 1.02])
@@ -145,6 +167,9 @@ function drawChart(
   const bgGradientId = `line-bg-${selectedStock}`;
   const closeGradientId = `close-fill-${selectedStock}`;
   const glowFilterId = `line-glow-${selectedStock}`;
+  const clipPathId = `line-clip-${selectedStock}`;
+  const plotWidth = width - margin.left - margin.right;
+  const plotHeight = height - margin.top - margin.bottom;
 
   const bgGradient = defs
     .append("linearGradient")
@@ -175,19 +200,28 @@ function drawChart(
     .attr("flood-color", "#a855f7")
     .attr("flood-opacity", 0.35);
 
+  defs
+    .append("clipPath")
+    .attr("id", clipPathId)
+    .append("rect")
+    .attr("x", margin.left)
+    .attr("y", margin.top)
+    .attr("width", plotWidth)
+    .attr("height", plotHeight);
+
   svg
     .append("rect")
     .attr("x", margin.left)
     .attr("y", margin.top)
-    .attr("width", width - margin.left - margin.right)
-    .attr("height", height - margin.top - margin.bottom)
+    .attr("width", plotWidth)
+    .attr("height", plotHeight)
     .attr("rx", 12)
     .attr("fill", `url(#${bgGradientId})`);
 
   const yGrid = d3
     .axisLeft(y)
     .ticks(6)
-    .tickSize(-(width - margin.left - margin.right))
+    .tickSize(-plotWidth)
     .tickFormat(() => "");
 
   svg
@@ -203,7 +237,7 @@ function drawChart(
   const xAxisGroup = svg
     .append("g")
     .attr("transform", `translate(0,${height - margin.bottom})`)
-    .call(d3.axisBottom(x).ticks(Math.min(10, series.length / 15)).tickSizeOuter(0));
+    .call(d3.axisBottom(x).ticks(Math.min(10, displaySeries.length / 15)).tickSizeOuter(0));
 
   const yAxisGroup = svg
     .append("g")
@@ -230,7 +264,7 @@ function drawChart(
     .attr("text-anchor", "middle")
     .text("Price (USD)");
 
-  const plotGroup = svg.append("g");
+  const plotGroup = svg.append("g").attr("clip-path", `url(#${clipPathId})`);
   let currentXScale = x;
   const closeArea = d3
     .area<StockCandle>()
@@ -241,7 +275,7 @@ function drawChart(
 
   plotGroup
     .append("path")
-    .datum(series)
+    .datum(displaySeries)
     .attr("fill", `url(#${closeGradientId})`)
     .attr("d", closeArea);
 
@@ -252,7 +286,7 @@ function drawChart(
         .x((d) => xScale(d.date))
         .y((d) => y(d[line.key]))
         .curve(d3.curveMonotoneX);
-      const path = plotGroup.selectAll(`path.line-${line.key}`).data([series]);
+      const path = plotGroup.selectAll(`path.line-${line.key}`).data([displaySeries]);
       path
         .join("path")
         .attr("class", `line-${line.key}`)
@@ -272,8 +306,8 @@ function drawChart(
     .append("rect")
     .attr("x", margin.left)
     .attr("y", margin.top)
-    .attr("width", width - margin.left - margin.right)
-    .attr("height", height - margin.top - margin.bottom)
+    .attr("width", plotWidth)
+    .attr("height", plotHeight)
     .attr("fill", "transparent")
     .on("mouseenter mousemove", (event) => {
       if (!tooltipElement) {
@@ -281,8 +315,8 @@ function drawChart(
       }
       const [mouseX, mouseY] = d3.pointer(event, svgElement);
       const hoveredDate = currentXScale.invert(mouseX);
-      const idx = bisectDate(series, hoveredDate, 0, series.length - 1);
-      const point = series[idx];
+      const idx = bisectDate(displaySeries, hoveredDate, 0, displaySeries.length - 1);
+      const point = displaySeries[idx];
       if (!point) {
         return;
       }
@@ -351,15 +385,38 @@ function drawChart(
       xAxisGroup.call(
         d3
           .axisBottom(newX)
-          .ticks(Math.min(10, series.length / 15))
+          .ticks(Math.min(10, displaySeries.length / 15))
           .tickSizeOuter(0),
       );
       styleAxis(xAxisGroup);
       drawLines(newX);
     });
 
+  xAxisGroup.raise();
+  yAxisGroup.raise();
   svg.call(zoomBehavior);
   return zoomBehavior;
+}
+
+function getDisplaySeries(
+  series: StockCandle[],
+  alignToNewsWindow: boolean,
+  newsDateRange: { start: string; end: string } | null,
+): StockCandle[] {
+  if (!alignToNewsWindow || !newsDateRange) {
+    return series;
+  }
+
+  const startMs = new Date(`${newsDateRange.start}T00:00:00`).getTime();
+  const endMs = new Date(`${newsDateRange.end}T23:59:59`).getTime();
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
+    return series;
+  }
+
+  return series.filter((row) => {
+    const dateMs = row.date.getTime();
+    return dateMs >= startMs && dateMs <= endMs;
+  });
 }
 
 function styleAxis(axisGroup: d3.Selection<SVGGElement, unknown, null, undefined>) {

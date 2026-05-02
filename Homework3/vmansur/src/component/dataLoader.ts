@@ -18,6 +18,22 @@ const tsneModules = import.meta.glob("../../data/tsne*.csv", {
   import: "default",
 }) as Record<string, () => Promise<string>>;
 
+interface DateRangeSummary {
+  start: string;
+  end: string;
+  count: number;
+}
+
+export interface DatasetSummary {
+  stockTickerCount: number;
+  stockStart: string | null;
+  stockEnd: string | null;
+  stockRowsPerTicker: number | null;
+  newsStart: string | null;
+  newsEnd: string | null;
+  newsItemCount: number;
+}
+
 function toNumber(value: string | undefined): number {
   if (value === undefined) {
     return Number.NaN;
@@ -107,6 +123,11 @@ const newsTickerIndex = Object.keys(newsTextModules).reduce<Record<string, strin
   return acc;
 }, {});
 
+function extractNewsDateFromPath(path: string): string | null {
+  const match = path.match(/\/(\d{4}-\d{2}-\d{2})_/);
+  return match?.[1] ?? null;
+}
+
 const newsCache = new Map<string, Promise<NewsItem[]>>();
 
 export function getNewsDataByTicker(ticker: string): Promise<NewsItem[]> {
@@ -127,6 +148,25 @@ export function getNewsDataByTicker(ticker: string): Promise<NewsItem[]> {
   return loadPromise;
 }
 
+export function getNewsDateRangeByTicker(ticker: string): DateRangeSummary | null {
+  const normalizedTicker = ticker.toUpperCase();
+  const paths = newsTickerIndex[normalizedTicker] ?? [];
+  const dates = paths
+    .map(extractNewsDateFromPath)
+    .filter((date): date is string => Boolean(date));
+
+  if (dates.length === 0) {
+    return null;
+  }
+
+  const sortedDates = [...dates].sort();
+  return {
+    start: sortedDates[0],
+    end: sortedDates[sortedDates.length - 1],
+    count: sortedDates.length,
+  };
+}
+
 function resolveColumnName(
   row: d3.DSVRowString<string>,
   candidates: string[],
@@ -143,6 +183,7 @@ function resolveColumnName(
 }
 
 let tsneCache: Promise<TSNEPoint[]> | null = null;
+let datasetSummaryCache: Promise<DatasetSummary> | null = null;
 
 export function getTsneData(): Promise<TSNEPoint[]> {
   if (tsneCache) {
@@ -183,4 +224,43 @@ export function getTsneData(): Promise<TSNEPoint[]> {
   });
 
   return tsneCache;
+}
+
+export function getDatasetSummary(): Promise<DatasetSummary> {
+  if (datasetSummaryCache) {
+    return datasetSummaryCache;
+  }
+
+  datasetSummaryCache = Promise.all(
+    Object.values(stockPathByTicker).map(async (path) => {
+      const rawCsv = await stockCsvModules[path]();
+      const rows = d3.csvParse(rawCsv);
+      const dates = rows.map((row) => row.Date ?? "").filter((date) => Boolean(date));
+      return {
+        rowCount: dates.length,
+        start: dates.length > 0 ? dates[0] : null,
+        end: dates.length > 0 ? dates[dates.length - 1] : null,
+      };
+    }),
+  ).then((stockResults) => {
+    const stockDates = stockResults.flatMap((result) => [result.start, result.end].filter(Boolean) as string[]);
+    const newsDates = Object.keys(newsTextModules)
+      .map(extractNewsDateFromPath)
+      .filter((date): date is string => Boolean(date));
+
+    const sortedStockDates = [...stockDates].sort();
+    const sortedNewsDates = [...newsDates].sort();
+
+    return {
+      stockTickerCount: Object.keys(stockPathByTicker).length,
+      stockStart: sortedStockDates[0] ?? null,
+      stockEnd: sortedStockDates[sortedStockDates.length - 1] ?? null,
+      stockRowsPerTicker: stockResults[0]?.rowCount ?? null,
+      newsStart: sortedNewsDates[0] ?? null,
+      newsEnd: sortedNewsDates[sortedNewsDates.length - 1] ?? null,
+      newsItemCount: newsDates.length,
+    };
+  });
+
+  return datasetSummaryCache;
 }
