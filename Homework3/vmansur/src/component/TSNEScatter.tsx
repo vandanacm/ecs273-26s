@@ -286,9 +286,8 @@ function drawScatter(
         }
       });
 
-    const labelData = labelMode === "all"
-      ? tsneData
-      : tsneData.filter((d) => d.ticker === selectedStock);
+    const labelData =
+      labelMode === "all" ? tsneData : tsneData.filter((d) => d.ticker === selectedStock);
 
     labels
       .selectAll<SVGTextElement, TsnePoint>("text")

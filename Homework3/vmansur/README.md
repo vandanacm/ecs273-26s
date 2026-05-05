@@ -1,24 +1,16 @@
-# ECS 273 Homework 3: D3 Stock Dashboard
+# Homework 3: D3 Stock Dashboard
 
-This project is a React and TypeScript dashboard with linked visualizations for stock analysis.
-
-It contains three coordinated views:
-
-- View 1: OHLC time-series line chart (zoomable, tooltip, reset zoom)
-- View 2: t-SNE scatter plot (sector color coding, zoom, tooltip, ticker labels, click-to-select)
-- View 3: expandable news panel for the selected stock
-
-Selecting a stock from the dropdown updates all views. Clicking a ticker in the scatter plot also updates the dropdown, line chart, and news panel.
+This assignment is a React + TypeScript dashboard (Vite, D3, Tailwind) for exploratory stock visualization. The main title in the app is **Homework 3: D3 Stock Dashboard**, and each panel matches that writeup: **View 1: Stock Overview Line Chart**, **View 2: t-SNE Scatter Plot**, and **View 3: Recent News**. Choosing a ticker in **Select stock** links all three views. **View 1** plots OHLC with wheel zoom on the chart, a **time-range brush** under the x-axis to zoom a selected span, hover tooltips, and reset zoom; **View 2** shows sector-colored t-SNE points with zoom, optional ticker labels, and click-to-select (equivalent to the dropdown); **View 3** loads expandable news articles for the selected stock. In **Advanced**, **Show only dates with news (optional)** filters View 1 to dates that have news so price and article windows align. A **Data integrity** line under the header summarizes dataset date spans.
 
 ## UI Preview
 
 Default dashboard layout:
 
-![Dashboard default view](/Users/vmansur/.cursor/projects/Users-vmansur-MyDrive-Spring-26-ECS273-ecs273-26s/assets/image-3029fa47-8482-448f-8403-2ced6f8c864a.png)
+![Dashboard default view](docs/screenshots/dashboard-default.png)
 
 Advanced mode with "Show only dates with news (optional)" enabled:
 
-![Dashboard advanced view](/Users/vmansur/.cursor/projects/Users-vmansur-MyDrive-Spring-26-ECS273-ecs273-26s/assets/image-b0fbdfc5-c2fc-4378-be3e-ff541581fa02.png)
+![Dashboard advanced view](docs/screenshots/dashboard-advanced.png)
 
 ## Tech Stack
 
@@ -38,7 +30,7 @@ Before running, make sure you have:
 ### 1. Navigate to the project folder
 
 ```bash
-cd "/Users/vmansur/MyDrive/Spring'26/ECS273/ecs273-26s/Homework3/vmansur"
+cd "/ecs273-26s/Homework3/yourFolder"
 ```
 
 ### 2. Install required packages
@@ -96,13 +88,11 @@ Files used by the app:
 - This submission is frontend-only and does not require a separate backend service.
 - If `npm run dev` fails due to port conflict, Vite may choose another port automatically.
 
-## Limitations and Assumptions
+## Limitations
 
-- The stock price history and news history have different time windows, so linked exploration does not imply causality.
-- t-SNE is used for exploratory structure only; distances and clusters are qualitative and can change with preprocessing/parameters.
-- The ticker universe is fixed and small, so findings are not intended to generalize to all equities.
-- News files are local snapshots at collection time and may not represent complete market coverage.
-- This dashboard is educational and exploratory, not a trading or forecasting system.
+- **Time alignment:** Stock history and news cover different spans; linking views is for exploration only, not proof of cause.
+- **t-SNE:** Distances are qualitative; not stable predictions or investment signals.
+- **Scope:** Fixed ticker set and local news snapshots; educational use only—not trading advice.
 
 ## Use of AI 
-- Used AI claude tool in understanding D3 and its uses for this assignment. 
+- Used claude tool in understanding D3 and its uses for this assignment. 

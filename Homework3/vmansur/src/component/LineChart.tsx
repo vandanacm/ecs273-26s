@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { getStockDataByTicker } from "./dataLoader";
 import { StockCandle } from "../types";
 
-const margin = { top: 24, right: 28, bottom: 56, left: 64 };
+const margin = { top: 24, right: 28, bottom: 0, left: 64 };
 const axisTextColor = "#334155";
 const axisLineColor = "#94a3b8";
 const axisDomainColor = "#64748b";
@@ -28,6 +28,7 @@ export default function LineChart({
   alignToNewsWindow,
   newsDateRange,
 }: LineChartProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -79,33 +80,43 @@ export default function LineChart({
   }, [series, selectedStock, alignToNewsWindow, newsDateRange]);
 
   const resetZoom = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = 0;
+    }
     if (!svgRef.current || !zoomBehaviorRef.current) {
       return;
     }
-    d3.select(svgRef.current).transition().duration(250).call(zoomBehaviorRef.current.transform, d3.zoomIdentity);
+    d3.select(svgRef.current).call(zoomBehaviorRef.current.transform, d3.zoomIdentity);
   };
 
   return (
-    <div className="relative h-full w-full overflow-x-auto">
-      <button
-        type="button"
-        onClick={resetZoom}
-        className="absolute right-3 top-3 z-10 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 shadow-sm"
-      >
-        Reset Zoom
-      </button>
-      <div
-        ref={containerRef}
-        className="h-full"
-        style={{
-          minWidth: `${Math.max(760, series.length * 9)}px`,
-        }}
-      >
-        <svg ref={svgRef} className="h-full w-full" />
+    <div className="flex h-full min-h-0 w-full flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-white px-3 py-2">
+        <h4 className="truncate text-base font-semibold text-slate-800">
+          {selectedStock} OHLC Time Series
+        </h4>
+        <button
+          type="button"
+          onClick={resetZoom}
+          className="shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 shadow-sm"
+        >
+          Reset Zoom
+        </button>
+      </div>
+      <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-x-auto">
         <div
-          ref={tooltipRef}
-          className="pointer-events-none absolute z-20 hidden rounded-md border border-slate-200 bg-white/95 px-2 py-1 text-xs text-slate-700 shadow"
-        />
+          ref={containerRef}
+          className="relative h-full"
+          style={{
+            minWidth: `${Math.max(760, series.length * 9)}px`,
+          }}
+        >
+          <svg ref={svgRef} className="h-full w-full" />
+          <div
+            ref={tooltipRef}
+            className="pointer-events-none absolute z-20 hidden rounded-md border border-slate-200 bg-white/95 px-2 py-1 text-xs text-slate-700 shadow"
+          />
+        </div>
       </div>
     </div>
   );
@@ -157,19 +168,37 @@ function drawChart(
 
   const yMin = d3.min(displaySeries, (d) => d.low) ?? 0;
   const yMax = d3.max(displaySeries, (d) => d.high) ?? 0;
+  const brushH = 16;
+  /** Space reserved below plot: tick labels, axis title, gaps, brush, hint line (prevents Date overlapping brush). */
+  const xTickDepth = 20;
+  const gapAfterTicks = 4;
+  const dateTitleHeight = 14;
+  const gapBeforeBrush = 10;
+  const gapAfterBrush = 12;
+  const hintBand = 22;
+  const belowPlot =
+    xTickDepth + gapAfterTicks + dateTitleHeight + gapBeforeBrush + brushH + gapAfterBrush + hintBand;
+  const plotBottomY = height - belowPlot;
+  const dateLabelY = plotBottomY + xTickDepth + gapAfterTicks + dateTitleHeight / 2;
+  const brushTopY = plotBottomY + xTickDepth + gapAfterTicks + dateTitleHeight + gapBeforeBrush;
+  const hintTextY = brushTopY + brushH + gapAfterBrush;
+
+  const plotWidth = width - margin.left - margin.right;
+  const plotHeight = plotBottomY - margin.top;
+  const plotLeft = margin.left;
+  const plotRight = width - margin.right;
+
   const y = d3
     .scaleLinear()
     .domain([yMin * 0.98, yMax * 1.02])
     .nice()
-    .range([height - margin.bottom, margin.top]);
+    .range([plotBottomY, margin.top]);
 
   const defs = svg.append("defs");
   const bgGradientId = `line-bg-${selectedStock}`;
   const closeGradientId = `close-fill-${selectedStock}`;
   const glowFilterId = `line-glow-${selectedStock}`;
   const clipPathId = `line-clip-${selectedStock}`;
-  const plotWidth = width - margin.left - margin.right;
-  const plotHeight = height - margin.top - margin.bottom;
 
   const bgGradient = defs
     .append("linearGradient")
@@ -236,7 +265,7 @@ function drawChart(
 
   const xAxisGroup = svg
     .append("g")
-    .attr("transform", `translate(0,${height - margin.bottom})`)
+    .attr("transform", `translate(0,${plotBottomY})`)
     .call(d3.axisBottom(x).ticks(Math.min(10, displaySeries.length / 15)).tickSizeOuter(0));
 
   const yAxisGroup = svg
@@ -247,12 +276,16 @@ function drawChart(
   styleAxis(xAxisGroup);
   styleAxis(yAxisGroup);
 
-  xAxisGroup
+  svg
+    .append("g")
+    .attr("class", "x-axis-date-label")
+    .attr("transform", `translate(${width / 2}, ${dateLabelY})`)
     .append("text")
-    .attr("x", width / 2)
-    .attr("y", 44)
-    .attr("fill", "#0f172a")
     .attr("text-anchor", "middle")
+    .attr("dominant-baseline", "middle")
+    .attr("fill", "#0f172a")
+    .style("font-size", "12px")
+    .style("font-weight", "600")
     .text("Date");
 
   yAxisGroup
@@ -266,18 +299,23 @@ function drawChart(
 
   const plotGroup = svg.append("g").attr("clip-path", `url(#${clipPathId})`);
   let currentXScale = x;
-  const closeArea = d3
-    .area<StockCandle>()
-    .x((d) => x(d.date))
-    .y0(height - margin.bottom)
-    .y1((d) => y(d.close))
-    .curve(d3.curveMonotoneX);
 
   plotGroup
     .append("path")
     .datum(displaySeries)
+    .attr("class", "area-close-fill")
     .attr("fill", `url(#${closeGradientId})`)
-    .attr("d", closeArea);
+    .attr("opacity", 0);
+
+  const drawAreaFill = (xScale: d3.ScaleTime<number, number>) => {
+    const areaGen = d3
+      .area<StockCandle>()
+      .x((d) => xScale(d.date))
+      .y0(plotBottomY)
+      .y1((d) => y(d.close))
+      .curve(d3.curveMonotoneX);
+    plotGroup.select<SVGPathElement>(".area-close-fill").datum(displaySeries).attr("d", areaGen);
+  };
 
   const drawLines = (xScale: d3.ScaleTime<number, number>) => {
     for (const line of lineDefs) {
@@ -300,6 +338,13 @@ function drawChart(
   };
 
   drawLines(x);
+  drawAreaFill(x);
+  plotGroup
+    .select(".area-close-fill")
+    .transition()
+    .duration(280)
+    .ease(d3.easeCubicOut)
+    .attr("opacity", 1);
 
   const bisectDate = d3.bisector((d: StockCandle) => d.date).center;
   svg
@@ -359,25 +404,41 @@ function drawChart(
       .text(line.label);
   });
 
-  svg
-    .append("text")
-    .attr("x", width / 2)
-    .attr("y", 16)
-    .attr("text-anchor", "middle")
-    .attr("fill", "#1e293b")
-    .style("font-weight", "600")
-    .text(`${selectedStock} OHLC Time Series`);
+  /** True while brush.move is driven by zoom — ignore brush "end" (must not re-apply zoom). */
+  let brushSyncFromZoom = false;
+
+  const brush = d3
+    .brushX()
+    .extent([
+      [plotLeft, 0],
+      [plotRight, brushH],
+    ]);
+
+  const brushG = svg
+    .append("g")
+    .attr("class", "line-x-brush")
+    .attr("transform", `translate(0, ${brushTopY})`)
+    .call(brush);
 
   const zoomBehavior = d3
     .zoom<SVGSVGElement, unknown>()
     .scaleExtent([1, 20])
+    .filter((event) => {
+      if ((event.target as Element | null)?.closest?.(".line-x-brush")) {
+        return false;
+      }
+      if (event.type !== "wheel") {
+        return false;
+      }
+      return !(event as WheelEvent).ctrlKey;
+    })
     .translateExtent([
       [margin.left, 0],
       [width - margin.right, height],
     ])
     .extent([
-      [margin.left, 0],
-      [width - margin.right, height],
+      [plotLeft, margin.top],
+      [plotRight, plotBottomY],
     ])
     .on("zoom", (event) => {
       const newX = event.transform.rescaleX(x);
@@ -390,10 +451,53 @@ function drawChart(
       );
       styleAxis(xAxisGroup);
       drawLines(newX);
+      drawAreaFill(newX);
+      const d0 = newX.invert(plotLeft);
+      const d1 = newX.invert(plotRight);
+      brushSyncFromZoom = true;
+      try {
+        brushG.call(brush.move, [x(d0), x(d1)]);
+      } finally {
+        brushSyncFromZoom = false;
+      }
     });
+
+  brush.on("end", (event: d3.D3BrushEvent<unknown>) => {
+    if (brushSyncFromZoom) {
+      return;
+    }
+    if (!event.selection || !event.sourceEvent) {
+      return;
+    }
+    const s = event.selection as [number, number];
+    const w = s[1] - s[0];
+    if (w < 6) {
+      return;
+    }
+    const k = plotWidth / w;
+    d3.select(svgElement)
+      .transition()
+      .duration(380)
+      .ease(d3.easeCubicOut)
+      .call(zoomBehavior.transform, d3.zoomIdentity.translate(plotLeft, 0).scale(k).translate(-s[0], 0));
+  });
+
+  brushG.call(brush.move, [plotLeft, plotRight]);
+  brushG.selectAll(".selection").attr("fill", "rgba(37, 99, 235, 0.14)").attr("stroke", "#3b82f6");
+  brushG.selectAll(".handle").attr("fill", "#64748b");
+
+  svg
+    .append("text")
+    .attr("x", plotLeft)
+    .attr("y", hintTextY)
+    .attr("fill", "#64748b")
+    .style("font-size", "10px")
+    .text("Brush: drag range to zoom that period. Chart: mouse wheel zooms time (no drag-pan). Scroll bar pans wide charts.");
 
   xAxisGroup.raise();
   yAxisGroup.raise();
+  svg.select(".x-axis-date-label").raise();
+  brushG.raise();
   svg.call(zoomBehavior);
   return zoomBehavior;
 }
