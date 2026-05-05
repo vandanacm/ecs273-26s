@@ -1,15 +1,15 @@
 # Homework 3: D3 Stock Dashboard
 
-This assignment is a React + TypeScript dashboard (Vite, D3, Tailwind) for exploratory stock visualization. The main title in the app is **Homework 3: D3 Stock Dashboard**, and each panel matches that writeup: 
-**View 1: Stock Overview Line Chart**
-**View 2: t-SNE Scatter Plot**
-**View 3: Recent News**
+This assignment is a React + TypeScript dashboard (Vite, D3, Tailwind) for exploratory stock visualization. The main title in the app is **Homework 3: D3 Stock Dashboard**, and each panel matches that writeup:
+- **View 1: Stock Overview Line Chart**
+- **View 2: t-SNE Scatter Plot**
+- **View 3: Recent News**
 
 Choosing a ticker in **Select stock** links all three views.
 
-**View 1** plots OHLC with wheel zoom on the chart, a **time-range brush** under the x-axis to zoom a selected span, hover tooltips, and reset zoom.
-**View 2** shows sector-colored t-SNE points with zoom, optional ticker labels, and click-to-select (equivalent to the dropdown)
-**View 3** loads expandable news articles for the selected stock. 
+- **View 1** plots OHLC with wheel zoom on the chart, a **time-range brush** under the x-axis to zoom a selected span, hover tooltips, and reset zoom.
+- **View 2** shows sector-colored t-SNE points with zoom, optional ticker labels, and click-to-select (equivalent to the dropdown).
+- **View 3** loads expandable news articles for the selected stock.
 
 In **Advanced**, **Show only dates with news (optional)** filters View 1 to dates that have news so price and article windows align. A **Data integrity** line under the header summarizes dataset date spans.
 
@@ -106,4 +106,4 @@ Files used by the app:
 - **Scope:** Fixed ticker set and local news snapshots; educational use only and not trading advice.
 
 ## Use of AI 
-- Used claude tool in understanding D3 and its uses for this assignment. 
+- Used claude tool in understanding D3 and its uses for this assignment.
