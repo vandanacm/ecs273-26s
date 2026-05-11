@@ -17,11 +17,11 @@ In **Advanced**, **Show only dates with news (optional)** filters View 1 to date
 
 Default dashboard layout:
 
-![Dashboard default view](docs/screenshots/dashboard-default.png)
+![Dashboard default view](src/assets/screenshots/dashboard-default.png)
 
 Advanced mode with "Show only dates with news (optional)" enabled:
 
-![Dashboard advanced view](docs/screenshots/dashboard-advanced.png)
+![Dashboard advanced view](src/assets/screenshots/dashboard-advanced.png)
 
 ## Tech Stack
 
