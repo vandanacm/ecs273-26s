@@ -109,17 +109,6 @@ Expected output ends with `Done.` and reports counts for each collection.
 uvicorn main:app --reload --port 8000
 ```
 
-#### Endpoints
-
-| Method | Path                                | Response model         | Description                                                                              |
-| ------ | ----------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------- |
-| `GET`  | `/health`                           | n/a                    | Liveness probe (`{status, database}`).                                                   |
-| `GET`  | `/stock_list`                       | `StockListModel`       | Tickers known to the system.                                                             |
-| `GET`  | `/stock/{stock_name}`               | `StockModelV2`         | OHLCV series for one ticker (`name`, `stock_series[]`). Returns **404** for unknown tickers. |
-| `GET`  | `/stocknews/?stock_name=TICKER`     | `StockNewsModelList`   | All news for the ticker, newest first. Returns an empty `News` list for unknown tickers. |
-| `GET`  | `/tsne/`                            | `tsneDataModelList`    | Every t-SNE point (one row per ticker) — used by the scatter plot.                       |
-| `GET`  | `/tsne/{stock_name}`                | `tsneDataModel`        | Single t-SNE row for one ticker (useful for detail/highlighting). 404 if unknown.        |
-
 ---
 
 ## Frontend Setup
@@ -160,23 +149,19 @@ be running on `http://localhost:8000`.
 ## End-to-End Quick Start (Three Terminals)
 
 ```bash
-# terminal 1 — MongoDB (only needed the first time / after a reboot)
-brew services start mongodb-community   # or: docker start mongo
+# terminal 1 — MongoDB 
+brew services start mongodb-community   
 
 # terminal 2 — backend
 cd Homework4/vmansur/server
 source .venv/bin/activate
-python import_data.py        # first time only (or whenever data changes)
+python import_data.py       
 uvicorn main:app --reload --port 8000
 
 # terminal 3 — frontend
 cd Homework4/vmansur/client
-npm install                  # first time only
+npm install                 
 npm run dev
 ```
 
 ---
-
-## Use of AI
-
-- Claude was used to understand the FastAPI. 
