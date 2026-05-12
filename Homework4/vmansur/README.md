@@ -29,15 +29,15 @@ Default dashboard layout:
 
 ![Dashboard default view](client/src/assets/screenshots/dashboard-default.png)
 
-Advanced mode with "Show only dates with news (optional)" enabled:
+Advanced mode with "Show only dates with news" enabled:
 
 ![Dashboard advanced view](client/src/assets/screenshots/dashboard-advanced.png)
 
 ## Prerequisites
 
-- Python 3.10+ (3.11 recommended).
-- Node.js 18+ (Node 20+ recommended) and `npm`.
-- A local MongoDB server reachable at `mongodb://localhost:27017`.
+- Python 3.10+
+- Node.js 18+ and `npm`
+- A local MongoDB server reachable at `mongodb://localhost:27017`
 
 ---
 
