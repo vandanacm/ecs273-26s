@@ -28,7 +28,6 @@ export default function LineChart({
   alignToNewsWindow,
   newsDateRange,
 }: LineChartProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -80,13 +79,13 @@ export default function LineChart({
   }, [series, selectedStock, alignToNewsWindow, newsDateRange]);
 
   const resetZoom = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollLeft = 0;
-    }
     if (!svgRef.current || !zoomBehaviorRef.current) {
       return;
     }
-    d3.select(svgRef.current).call(zoomBehaviorRef.current.transform, d3.zoomIdentity);
+    d3.select(svgRef.current)
+      .transition()
+      .duration(300)
+      .call(zoomBehaviorRef.current.transform, d3.zoomIdentity);
   };
 
   return (
@@ -103,20 +102,12 @@ export default function LineChart({
           Reset Zoom
         </button>
       </div>
-      <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-x-auto">
+      <div ref={containerRef} className="relative min-h-0 flex-1">
+        <svg ref={svgRef} className="h-full w-full cursor-grab touch-none active:cursor-grabbing" />
         <div
-          ref={containerRef}
-          className="relative h-full"
-          style={{
-            minWidth: `${Math.max(760, series.length * 9)}px`,
-          }}
-        >
-          <svg ref={svgRef} className="h-full w-full" />
-          <div
-            ref={tooltipRef}
-            className="pointer-events-none absolute z-20 hidden rounded-md border border-slate-200 bg-white/95 px-2 py-1 text-xs text-slate-700 shadow"
-          />
-        </div>
+          ref={tooltipRef}
+          className="pointer-events-none absolute z-20 hidden rounded-md border border-slate-200 bg-white/95 px-2 py-1 text-xs text-slate-700 shadow"
+        />
       </div>
     </div>
   );
@@ -168,20 +159,14 @@ function drawChart(
 
   const yMin = d3.min(displaySeries, (d) => d.low) ?? 0;
   const yMax = d3.max(displaySeries, (d) => d.high) ?? 0;
-  const brushH = 16;
-  /** Space reserved below plot: tick labels, axis title, gaps, brush, hint line (prevents Date overlapping brush). */
   const xTickDepth = 20;
   const gapAfterTicks = 4;
   const dateTitleHeight = 14;
-  const gapBeforeBrush = 10;
-  const gapAfterBrush = 12;
-  const hintBand = 22;
-  const belowPlot =
-    xTickDepth + gapAfterTicks + dateTitleHeight + gapBeforeBrush + brushH + gapAfterBrush + hintBand;
+  const hintBand = 18;
+  const belowPlot = xTickDepth + gapAfterTicks + dateTitleHeight + hintBand;
   const plotBottomY = height - belowPlot;
   const dateLabelY = plotBottomY + xTickDepth + gapAfterTicks + dateTitleHeight / 2;
-  const brushTopY = plotBottomY + xTickDepth + gapAfterTicks + dateTitleHeight + gapBeforeBrush;
-  const hintTextY = brushTopY + brushH + gapAfterBrush;
+  const hintTextY = plotBottomY + xTickDepth + gapAfterTicks + dateTitleHeight + 14;
 
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = plotBottomY - margin.top;
@@ -349,11 +334,13 @@ function drawChart(
   const bisectDate = d3.bisector((d: StockCandle) => d.date).center;
   svg
     .append("rect")
+    .attr("class", "line-chart-overlay")
     .attr("x", margin.left)
     .attr("y", margin.top)
     .attr("width", plotWidth)
     .attr("height", plotHeight)
     .attr("fill", "transparent")
+    .style("pointer-events", "all")
     .on("mouseenter mousemove", (event) => {
       if (!tooltipElement) {
         return;
@@ -404,87 +391,79 @@ function drawChart(
       .text(line.label);
   });
 
-  /** True while brush.move is driven by zoom — ignore brush "end" (must not re-apply zoom). */
-  let brushSyncFromZoom = false;
-
-  const brush = d3
-    .brushX()
-    .extent([
-      [plotLeft, 0],
-      [plotRight, brushH],
-    ]);
-
-  const brushG = svg
-    .append("g")
-    .attr("class", "line-x-brush")
-    .attr("transform", `translate(0, ${brushTopY})`)
-    .call(brush);
+  const updateXView = (newX: d3.ScaleTime<number, number>) => {
+    currentXScale = newX;
+    xAxisGroup.call(
+      d3.axisBottom(newX).ticks(Math.min(10, displaySeries.length / 15)).tickSizeOuter(0),
+    );
+    styleAxis(xAxisGroup);
+    drawLines(newX);
+    drawAreaFill(newX);
+  };
 
   const zoomBehavior = d3
     .zoom<SVGSVGElement, unknown>()
-    .scaleExtent([1, 20])
+    .scaleExtent([1, 40])
     .filter((event) => {
-      if ((event.target as Element | null)?.closest?.(".line-x-brush")) {
+      if (event.type === "dblclick") {
+        return true;
+      }
+      if (event.type === "wheel") {
         return false;
       }
-      if (event.type !== "wheel") {
-        return false;
-      }
-      return !(event as WheelEvent).ctrlKey;
+      return !event.ctrlKey && !event.button;
     })
-    .translateExtent([
-      [margin.left, 0],
-      [width - margin.right, height],
-    ])
     .extent([
       [plotLeft, margin.top],
       [plotRight, plotBottomY],
     ])
     .on("zoom", (event) => {
-      const newX = event.transform.rescaleX(x);
-      currentXScale = newX;
-      xAxisGroup.call(
-        d3
-          .axisBottom(newX)
-          .ticks(Math.min(10, displaySeries.length / 15))
-          .tickSizeOuter(0),
-      );
-      styleAxis(xAxisGroup);
-      drawLines(newX);
-      drawAreaFill(newX);
-      const d0 = newX.invert(plotLeft);
-      const d1 = newX.invert(plotRight);
-      brushSyncFromZoom = true;
-      try {
-        brushG.call(brush.move, [x(d0), x(d1)]);
-      } finally {
-        brushSyncFromZoom = false;
-      }
+      const timeTransform = d3.zoomIdentity
+        .translate(event.transform.x, 0)
+        .scale(event.transform.k);
+      updateXView(timeTransform.rescaleX(x));
     });
 
-  brush.on("end", (event: d3.D3BrushEvent<unknown>) => {
-    if (brushSyncFromZoom) {
-      return;
-    }
-    if (!event.selection || !event.sourceEvent) {
-      return;
-    }
-    const s = event.selection as [number, number];
-    const w = s[1] - s[0];
-    if (w < 6) {
-      return;
-    }
-    const k = plotWidth / w;
+  const resetZoomView = () => {
     d3.select(svgElement)
       .transition()
-      .duration(380)
-      .ease(d3.easeCubicOut)
-      .call(zoomBehavior.transform, d3.zoomIdentity.translate(plotLeft, 0).scale(k).translate(-s[0], 0));
+      .duration(300)
+      .call(zoomBehavior.transform, d3.zoomIdentity);
+  };
+
+  const handleWheel = (event: WheelEvent) => {
+    event.preventDefault();
+    const svgSelection = d3.select(svgElement);
+    const [mx] = d3.pointer(event, svgElement);
+
+    if (event.shiftKey && event.deltaY !== 0) {
+      svgSelection.call(zoomBehavior.translateBy, -event.deltaY, 0);
+      return;
+    }
+
+    if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+      svgSelection.call(zoomBehavior.translateBy, -event.deltaX, 0);
+      return;
+    }
+
+    const scaleFactor = event.deltaY > 0 ? 0.92 : 1.08;
+    svgSelection.call(zoomBehavior.scaleBy, scaleFactor, [mx, plotBottomY / 2]);
+  };
+
+  svg.call(zoomBehavior);
+
+  svg.on("dblclick.zoom", (event) => {
+    event.preventDefault();
+    resetZoomView();
   });
 
-  brushG.call(brush.move, [plotLeft, plotRight]);
-  brushG.selectAll(".selection").attr("fill", "rgba(37, 99, 235, 0.14)").attr("stroke", "#3b82f6");
-  brushG.selectAll(".handle").attr("fill", "#64748b");
+  const overlay = svg.select<SVGRectElement>(".line-chart-overlay");
+  overlay.on("dblclick", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    resetZoomView();
+  });
+  overlay.on("wheel", (event) => handleWheel(event), { passive: false });
 
   svg
     .append("text")
@@ -492,13 +471,13 @@ function drawChart(
     .attr("y", hintTextY)
     .attr("fill", "#64748b")
     .style("font-size", "10px")
-    .text("Brush: drag range to zoom that period. Chart: mouse wheel zooms time (no drag-pan). Scroll bar pans wide charts.");
+    .text("Drag, sideways scroll, or Shift+scroll to pan · scroll to zoom · double-click or Reset to fit");
 
   xAxisGroup.raise();
   yAxisGroup.raise();
   svg.select(".x-axis-date-label").raise();
-  brushG.raise();
-  svg.call(zoomBehavior);
+  svg.select(".line-chart-overlay").raise();
+
   return zoomBehavior;
 }
 

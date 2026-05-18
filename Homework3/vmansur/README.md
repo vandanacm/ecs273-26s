@@ -7,7 +7,7 @@ This assignment is a React + TypeScript dashboard (Vite, D3, Tailwind) for explo
 
 Choosing a ticker in **Select stock** links all three views.
 
-- **View 1** plots OHLC with wheel zoom on the chart, a **time-range brush** under the x-axis to zoom a selected span, hover tooltips, and reset zoom.
+- **View 1** plots OHLC with direct zoom and pan on the chart (drag to pan, scroll to zoom, Shift+scroll or trackpad sideways scroll to pan), hover tooltips, and reset zoom.
 - **View 2** shows sector-colored t-SNE points with zoom, optional ticker labels, and click-to-select (equivalent to the dropdown).
 - **View 3** loads expandable news articles for the selected stock.
 
